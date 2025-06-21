@@ -7,6 +7,7 @@ from .serializers import OrderSerializer, RegisterSerializer, ProductSerializer,
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from razorpay.errors import SignatureVerificationError
+from .tasks import send_order_confirmation_email
 
 class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
@@ -157,6 +158,7 @@ class RazorpayVerifyView(APIView):
         cart = Cart.objects.get(user=user)
         total_price = sum([item.product.price * item.quantity for item in cart.items.all()])
         order = Order.objects.create(user=user, total_price=total_price, status='CONFIRMED', payment_id=payment_id)
+        send_order_confirmation_email.delay(order.id)
 
         for item in cart.items.all():
             OrderItem.objects.create(

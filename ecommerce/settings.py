@@ -137,3 +137,12 @@ AUTH_USER_MODEL = 'core.User'
 
 RAZORPAY_KEY_ID = os.environ.get('RAZORPAY_KEY_ID')
 RAZORPAY_KEY_SECRET = os.environ.get('RAZORPAY_KEY_SECRET')
+
+# Redis broker
+CELERY_BROKER_URL = 'redis://localhost:6379/0'
+
+# Optional: store task results in DB
+INSTALLED_APPS += ['django_celery_results']
+CELERY_RESULT_BACKEND = 'django-db'
+
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'

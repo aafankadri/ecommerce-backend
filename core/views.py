@@ -3,11 +3,12 @@ from django.conf import settings
 from rest_framework import generics, filters, permissions, status
 from rest_framework.response import Response
 from .models import OrderItem, User, Product, Cart, CartItem, Order
-from .serializers import OrderSerializer, RegisterSerializer, ProductSerializer, CartSerializer, CartItemSerializer
+from .serializers import AdminOrderUpdateSerializer, OrderSerializer, RegisterSerializer, ProductSerializer, CartSerializer, CartItemSerializer
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from razorpay.errors import SignatureVerificationError
 from .tasks import send_order_confirmation_email
+from .permissions import IsAdminUser
 
 class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
@@ -173,3 +174,21 @@ class RazorpayVerifyView(APIView):
         cart.items.all().delete()
 
         return Response({'message': 'Payment successful and order placed', 'order_id': order.id})
+    
+
+class AdminOrderListView(generics.ListAPIView):
+    serializer_class = OrderSerializer
+    permission_classes = [permissions.IsAuthenticated, IsAdminUser]
+
+    def get_queryset(self):
+        status_filter = self.request.query_params.get('status')
+        queryset = Order.objects.all().order_by('-created_at')
+        if status_filter:
+            queryset = queryset.filter(status=status_filter.upper())
+        return queryset
+    
+class AdminOrderStatusUpdateView(generics.UpdateAPIView):
+    queryset = Order.objects.all()
+    serializer_class = AdminOrderUpdateSerializer
+    permission_classes = [permissions.IsAuthenticated, IsAdminUser]
+    lookup_field = 'pk'

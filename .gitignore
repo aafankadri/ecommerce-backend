@@ -1,0 +1,57 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Django stuff:
+*.log
+*.pot
+*.pyc
+db.sqlite3
+media/
+staticfiles/
+local_settings.py
+.env
+
+# If using Django migrations:
+**/migrations/*.pyc
+**/migrations/__pycache__/
+**/migrations/*.py
+
+# If using PostgreSQL:
+*.pgdata
+
+# Pytest
+.cache
+.pytest_cache/
+
+# VS Code / PyCharm / IDEs
+.vscode/
+.idea/
+
+# Virtualenv
+venv/
+ENV/
+env/
+.venv/
+
+# macOS / Linux / Windows junk files
+.DS_Store
+Thumbs.db
+
+# pipenv / poetry / pip-tools
+Pipfile.lock
+poetry.lock
+
+# Coverage reports
+htmlcov/
+.coverage
+.tox/
+nosetests.xml
+coverage.xml
+
+# Static files
+static/
+
+# Jupyter Notebook
+.ipynb_checkpoints/

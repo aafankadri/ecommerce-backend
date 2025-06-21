@@ -1,7 +1,7 @@
 from rest_framework import generics, filters, permissions, status
 from rest_framework.response import Response
-from .models import User, Product, Cart, CartItem
-from .serializers import RegisterSerializer, ProductSerializer, CartSerializer, CartItemSerializer
+from .models import OrderItem, User, Product, Cart, CartItem, Order
+from .serializers import OrderSerializer, RegisterSerializer, ProductSerializer, CartSerializer, CartItemSerializer
 from rest_framework.views import APIView
 
 class RegisterView(generics.CreateAPIView):
@@ -66,3 +66,38 @@ class RemoveCartItemView(APIView):
             return Response({'message': 'Item removed from cart'})
         except CartItem.DoesNotExist:
             return Response({'error': 'Item not found'}, status=404)
+        
+class OrderCreateView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        cart = Cart.objects.filter(user=user).first()
+
+        if not cart or not cart.items.exists():
+            return Response({'error': 'Cart is empty'}, status=400)
+
+        total_price = sum([item.product.price * item.quantity for item in cart.items.all()])
+        order = Order.objects.create(user=user, total_price=total_price, status='CONFIRMED')
+
+        for item in cart.items.all():
+            OrderItem.objects.create(
+                order=order,
+                product=item.product,
+                quantity=item.quantity,
+                price=item.product.price
+            )
+            # Reduce stock
+            item.product.stock -= item.quantity
+            item.product.save()
+
+        cart.items.all().delete()  # Clear cart
+
+        return Response({'message': 'Order placed successfully', 'order_id': order.id})
+    
+class OrderListView(generics.ListAPIView):
+    serializer_class = OrderSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return Order.objects.filter(user=self.request.user).order_by('-created_at')

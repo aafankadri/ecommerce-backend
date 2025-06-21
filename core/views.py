@@ -1,8 +1,12 @@
+import razorpay
+from django.conf import settings
 from rest_framework import generics, filters, permissions, status
 from rest_framework.response import Response
 from .models import OrderItem, User, Product, Cart, CartItem, Order
 from .serializers import OrderSerializer, RegisterSerializer, ProductSerializer, CartSerializer, CartItemSerializer
 from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
+from razorpay.errors import SignatureVerificationError
 
 class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
@@ -101,3 +105,69 @@ class OrderListView(generics.ListAPIView):
 
     def get_queryset(self):
         return Order.objects.filter(user=self.request.user).order_by('-created_at')
+    
+class RazorpayOrderCreateView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        cart = Cart.objects.filter(user=user).first()
+
+        if not cart or not cart.items.exists():
+            return Response({'error': 'Cart is empty'}, status=400)
+
+        total_price = sum([item.product.price * item.quantity for item in cart.items.all()])
+        total_amount_paise = int(total_price * 100)  # Razorpay expects amount in paise
+
+        client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
+        payment = client.order.create({
+            "amount": total_amount_paise,
+            "currency": "INR",
+            "payment_capture": "1"
+        })
+
+        return Response({
+            "razorpay_order_id": payment['id'],
+            "amount": total_amount_paise,
+            "currency": "INR",
+            "key": settings.RAZORPAY_KEY_ID
+        })
+    
+class RazorpayVerifyView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        data = request.data
+        order_id = data.get("order_id")
+        payment_id = data.get("payment_id")
+        signature = data.get("signature")
+
+        client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
+        try:
+            client.utility.verify_payment_signature({
+                "razorpay_order_id": order_id,
+                "razorpay_payment_id": payment_id,
+                "razorpay_signature": signature
+            })
+        except SignatureVerificationError:
+            return Response({'error': 'Payment verification failed'}, status=400)
+
+        # Proceed with placing the order
+        cart = Cart.objects.get(user=user)
+        total_price = sum([item.product.price * item.quantity for item in cart.items.all()])
+        order = Order.objects.create(user=user, total_price=total_price, status='CONFIRMED', payment_id=payment_id)
+
+        for item in cart.items.all():
+            OrderItem.objects.create(
+                order=order,
+                product=item.product,
+                quantity=item.quantity,
+                price=item.product.price
+            )
+            item.product.stock -= item.quantity
+            item.product.save()
+
+        cart.items.all().delete()
+
+        return Response({'message': 'Payment successful and order placed', 'order_id': order.id})

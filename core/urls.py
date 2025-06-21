@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import RegisterView, ProductListView, CartDetailView, AddToCartView, UpdateCartItemView, RemoveCartItemView, OrderCreateView, OrderListView
+from .views import RegisterView, ProductListView, CartDetailView, AddToCartView, UpdateCartItemView, RemoveCartItemView, OrderCreateView, OrderListView, RazorpayOrderCreateView, RazorpayVerifyView
 
 urlpatterns = [
     path('register/', RegisterView.as_view(), name='register'),
@@ -10,4 +10,6 @@ urlpatterns = [
     path('cart/remove/<int:item_id>/', RemoveCartItemView.as_view(), name='cart-remove'),
     path('orders/', OrderListView.as_view(), name='order-list'),
     path('orders/create/', OrderCreateView.as_view(), name='order-create'),
+    path('razorpay/create-order/', RazorpayOrderCreateView.as_view(), name='razorpay-create'),
+    path('razorpay/verify-payment/', RazorpayVerifyView.as_view(), name='razorpay-verify'),
 ]
